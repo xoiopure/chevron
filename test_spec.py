@@ -10,12 +10,7 @@ import io
 import chevron
 
 import sys
-if sys.version_info[0] == 3:
-    python3 = True
-else:  # python 2
-    python3 = False
-
-
+python3 = sys.version_info[0] == 3
 SPECS_PATH = os.path.join('spec', 'specs')
 if os.path.exists(SPECS_PATH):
     SPECS = [path for path in os.listdir(SPECS_PATH) if path.endswith('.json')]
@@ -26,7 +21,9 @@ STACHE = chevron.render
 
 
 def _test_case_from_path(json_path):
-    json_path = '%s.json' % json_path
+    json_path = f'{json_path}.json'
+
+
 
     class MustacheTestCase(unittest.TestCase):
         """A simple yaml based test case"""
@@ -49,7 +46,8 @@ def _test_case_from_path(json_path):
 
         # Generates a unit test for each test object
         for i, test in enumerate(yaml['tests']):
-            vars()['test_' + str(i)] = _test_from_object(test)
+            vars()[f'test_{str(i)}'] = _test_from_object(test)
+
 
     # Return the built class
     return MustacheTestCase
@@ -358,7 +356,13 @@ class ExpandedCoverage(unittest.TestCase):
 
     # https://github.com/noahmorrison/chevron/issues/35
     def test_custom_falsy(self):
+
+
+
         class CustomData(dict):
+
+
+
             class LowercaseBool:
                 _CHEVRON_return_scope_when_falsy = True
 
@@ -367,20 +371,19 @@ class ExpandedCoverage(unittest.TestCase):
 
                 def __bool__(self):
                     return self.value
+
                 __nonzero__ = __bool__
 
                 def __str__(self):
-                    if self.value:
-                        return 'true'
-                    return 'false'
+                    return 'true' if self.value else 'false'
+
 
             def __getitem__(self, key):
                 item = dict.__getitem__(self, key)
                 if isinstance(item, dict):
                     return CustomData(item)
-                if isinstance(item, bool):
-                    return self.LowercaseBool(item)
-                return item
+                return self.LowercaseBool(item) if isinstance(item, bool) else item
+
 
         args = {
             'data': CustomData({

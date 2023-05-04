@@ -21,12 +21,7 @@ def main(template, data=None, **kwargs):
         else:
             data = {}
 
-        args = {
-            'template': template_file,
-            'data': data
-        }
-
-        args.update(kwargs)
+        args = {'template': template_file, 'data': data} | kwargs
         return render(**args)
 
 

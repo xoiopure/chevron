@@ -36,12 +36,7 @@ def l_sa_check(template, literal, is_standalone):
         padding = literal.split('\n')[-1]
 
         # If all the characters since the last newline are spaces
-        if padding.isspace() or padding == '':
-            # Then the next tag could be a standalone
-            return True
-        else:
-            # Otherwise it can't be
-            return False
+        return bool(padding.isspace() or padding == '')
 
 
 def r_sa_check(template, tag_type, is_standalone):
@@ -52,12 +47,7 @@ def r_sa_check(template, tag_type, is_standalone):
         on_newline = template.split('\n', 1)
 
         # If the stuff to the right of us are spaces we're a standalone
-        if on_newline[0].isspace() or not on_newline[0]:
-            return True
-        else:
-            return False
-
-    # If we're a tag can't be a standalone
+        return bool(on_newline[0].isspace() or not on_newline[0])
     else:
         return False
 
@@ -95,18 +85,14 @@ def parse_tag(template, l_del, r_del):
 
     # If we might be a set delimiter tag
     if tag_type == 'set delimiter?':
-        # Double check to make sure we are
-        if tag.endswith('='):
-            tag_type = 'set delimiter'
-            # Remove the equal sign
-            tag = tag[:-1]
-
-        # Otherwise we should complain
-        else:
+        if not tag.endswith('='):
             raise ChevronError('unclosed set delimiter tag\n'
                                'at line {0}'.format(_CURRENT_LINE))
 
-    # If we might be a no html escape tag
+        tag_type = 'set delimiter'
+        # Remove the equal sign
+        tag = tag[:-1]
+
     elif tag_type == 'no escape?':
         # And we have a third curly brace
         # (And are using curly braces as delimiters)
