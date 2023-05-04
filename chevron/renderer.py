@@ -92,12 +92,9 @@ def _get_key(key, scopes, warn, keep, def_ldel, def_rdel):
     # We couldn't find the key in any of the scopes
 
     if warn:
-        sys.stderr.write("Could not find key '%s'%s" % (key, linesep))
+        sys.stderr.write(f"Could not find key '{key}'{linesep}")
 
-    if keep:
-        return "%s %s %s" % (def_ldel, key, def_rdel)
-
-    return ''
+    return f"{def_ldel} {key} {def_rdel}" if keep else ''
 
 
 def _get_partial(name, partials_dict, partials_path, partials_ext):
@@ -112,7 +109,7 @@ def _get_partial(name, partials_dict, partials_path, partials_ext):
         # Nope...
         try:
             # Maybe it's in the file system
-            path_ext = ('.' + partials_ext if partials_ext else '')
+            path_ext = f'.{partials_ext}' if partials_ext else ''
             partial_path = path.join(partials_path, name + path_ext)
             with io.open(partial_path, 'r', encoding='utf-8') as partial:
                 return partial.read()
@@ -190,13 +187,12 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
             not isinstance(template, string_type):
         # Then we don't need to tokenize it
         # But it does need to be a generator
-        tokens = (token for token in template)
+        tokens = iter(template)
+    elif template in g_token_cache:
+        tokens = iter(g_token_cache[template])
     else:
-        if template in g_token_cache:
-            tokens = (token for token in g_token_cache[template])
-        else:
-            # Otherwise make a generator
-            tokens = tokenize(template, def_ldel, def_rdel)
+        # Otherwise make a generator
+        tokens = tokenize(template, def_ldel, def_rdel)
 
     output = unicode('', 'utf-8')
 
@@ -213,21 +209,18 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
             # Pop out of the latest scope
             del scopes[0]
 
-        # If the current scope is falsy and not the only scope
         elif not current_scope and len(scopes) != 1:
             if tag in ['section', 'inverted section']:
                 # Set the most recent scope to a falsy value
                 # (I heard False is a good one)
                 scopes.insert(0, False)
 
-        # If we're a literal tag
         elif tag == 'literal':
             # Add padding to the key and add it to the output
             if not isinstance(key, unicode_type):  # python 2
                 key = unicode(key, 'utf-8')
             output += key.replace('\n', '\n' + padding)
 
-        # If we're a variable tag
         elif tag == 'variable':
             # Add the html escaped key to the output
             thing = _get_key(key, scopes, warn=warn, keep=keep, def_ldel=def_ldel, def_rdel=def_rdel)
@@ -240,7 +233,6 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                 thing = unicode(str(thing), 'utf-8')
             output += _html_escape(thing)
 
-        # If we're a no html escape tag
         elif tag == 'no escape':
             # Just lookup the key and add it
             thing = _get_key(key, scopes, warn=warn, keep=keep, def_ldel=def_ldel, def_rdel=def_rdel)
@@ -248,7 +240,6 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                 thing = unicode(str(thing), 'utf-8')
             output += thing
 
-        # If we're a section tag
         elif tag == 'section':
             # Get the sections scope
             scope = _get_key(key, scopes, warn=warn, keep=keep, def_ldel=def_ldel, def_rdel=def_rdel)
@@ -269,7 +260,7 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                     if tag_type == 'literal':
                         text += tag_key
                     elif tag_type == 'no escape':
-                        text += "%s& %s %s" % (def_ldel, tag_key, def_rdel)
+                        text += f"{def_ldel}& {tag_key} {def_rdel}"
                     else:
                         text += "%s%s %s%s" % (def_ldel, {
                                 'commment': '!',
@@ -294,13 +285,7 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                              scopes=data and [data]+scopes or scopes,
                              warn=warn, keep=keep))
 
-                if python3:
-                    output += rend
-                else:  # python 2
-                    output += rend.decode('utf-8')
-
-            # If the scope is a sequence, an iterator or generator but not
-            # derived from a string
+                output += rend if python3 else rend.decode('utf-8')
             elif isinstance(scope, (Sequence, Iterator)) and \
                     not isinstance(scope, string_type):
                 # Then we need to do some looping
@@ -331,22 +316,16 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                                   def_ldel=def_ldel, def_rdel=def_rdel,
                                   warn=warn, keep=keep)
 
-                    if python3:
-                        output += rend
-                    else:  # python 2
-                        output += rend.decode('utf-8')
-
+                    output += rend if python3 else rend.decode('utf-8')
             else:
                 # Otherwise we're just a scope section
                 scopes.insert(0, scope)
 
-        # If we're an inverted section
         elif tag == 'inverted section':
             # Add the flipped scope to the scopes
             scope = _get_key(key, scopes, warn=warn, keep=keep, def_ldel=def_ldel, def_rdel=def_rdel)
             scopes.insert(0, not scope)
 
-        # If we're a partial
         elif tag == 'partial':
             # Load the partial
             partial = _get_partial(key, partials_dict,
@@ -372,12 +351,5 @@ def render(template='', data={}, partials_path='.', partials_ext='mustache',
                 part_out = part_out.rstrip(' \t')
 
             # Add the partials output to the ouput
-            if python3:
-                output += part_out
-            else:  # python 2
-                output += part_out.decode('utf-8')
-
-    if python3:
-        return output
-    else:  # python 2
-        return output.encode('utf-8')
+            output += part_out if python3 else part_out.decode('utf-8')
+    return output if python3 else output.encode('utf-8')
